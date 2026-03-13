@@ -162,29 +162,104 @@ generate_secrets() {
 
   info "Gerando chaves criptográficas..."
 
-  local app_secret jwt_secret postgres_pw redis_pw elastic_pw vault_token airflow_fernet airflow_secret
+  local app_secret jwt_secret postgres_pw redis_pw elastic_pw vault_token airflow_fernet airflow_secret airflow_admin_pw
   app_secret=$(openssl rand -hex 32)
   jwt_secret=$(openssl rand -hex 32)
-  postgres_pw=$(pwgen -s 32 1)
-  redis_pw=$(pwgen -s 24 1)
-  elastic_pw=$(pwgen -s 24 1)
-  vault_token=$(pwgen -s 32 1)
-  airflow_fernet=$(python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())" 2>/dev/null || openssl rand -base64 32)
+  airflow_fernet=$(python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())" 2>/dev/null || openssl rand -base64 32 | tr -d '\n')
   airflow_secret=$(openssl rand -hex 24)
 
-  cp "$SCRIPT_DIR/.env.example" "$SCRIPT_DIR/.env"
+  # Usa pwgen se disponível, senão fallback para openssl
+  if command -v pwgen &>/dev/null; then
+    postgres_pw=$(pwgen -s 32 1)
+    redis_pw=$(pwgen -s 24 1)
+    elastic_pw=$(pwgen -s 24 1)
+    vault_token=$(pwgen -s 32 1)
+    airflow_admin_pw=$(pwgen -s 20 1)
+  else
+    postgres_pw=$(openssl rand -base64 24 | tr -d '/+=\n')
+    redis_pw=$(openssl rand -base64 18 | tr -d '/+=\n')
+    elastic_pw=$(openssl rand -base64 18 | tr -d '/+=\n')
+    vault_token=$(openssl rand -base64 24 | tr -d '/+=\n')
+    airflow_admin_pw=$(openssl rand -base64 15 | tr -d '/+=\n')
+  fi
 
-  sed -i "s|CHANGE_THIS_TO_A_RANDOM_SECRET_64_CHARS|$app_secret|g" "$SCRIPT_DIR/.env"
-  sed -i "s|CHANGE_THIS_TO_ANOTHER_RANDOM_SECRET|$jwt_secret|g" "$SCRIPT_DIR/.env"
-  sed -i "s|CHANGE_THIS_STRONG_PASSWORD|$postgres_pw|g" "$SCRIPT_DIR/.env"
-  sed -i "s|CHANGE_THIS_REDIS_PASSWORD|$redis_pw|g" "$SCRIPT_DIR/.env"
-  sed -i "s|CHANGE_THIS_ELASTIC_PASSWORD|$elastic_pw|g" "$SCRIPT_DIR/.env"
-  sed -i "s|CHANGE_THIS_VAULT_ROOT_TOKEN|$vault_token|g" "$SCRIPT_DIR/.env"
-  sed -i "s|CHANGE_THIS_FERNET_KEY_32_BYTES_BASE64|$airflow_fernet|g" "$SCRIPT_DIR/.env"
-  sed -i "s|CHANGE_THIS_AIRFLOW_SECRET|$airflow_secret|g" "$SCRIPT_DIR/.env"
+  # Gera o .env diretamente (nao depende do .env.example)
+  cat > "$SCRIPT_DIR/.env" << ENVEOF
+# ============================================================
+# SECURITY DATA LAKE — Gerado automaticamente em $(date)
+# ============================================================
+
+APP_SECRET_KEY=${app_secret}
+APP_ENV=production
+APP_HOST=0.0.0.0
+APP_PORT=8000
+APP_DEBUG=false
+FRONTEND_URL=http://localhost
+
+JWT_SECRET_KEY=${jwt_secret}
+JWT_ALGORITHM=HS256
+JWT_ACCESS_TOKEN_EXPIRE_MINUTES=60
+JWT_REFRESH_TOKEN_EXPIRE_DAYS=7
+
+POSTGRES_HOST=postgres
+POSTGRES_PORT=5432
+POSTGRES_DB=security_data_lake
+POSTGRES_USER=sdl_admin
+POSTGRES_PASSWORD=${postgres_pw}
+DATABASE_URL=postgresql://sdl_admin:${postgres_pw}@postgres:5432/security_data_lake
+
+ELASTICSEARCH_HOST=elasticsearch
+ELASTICSEARCH_PORT=9200
+ELASTICSEARCH_USER=elastic
+ELASTICSEARCH_PASSWORD=${elastic_pw}
+
+REDIS_HOST=redis
+REDIS_PORT=6379
+REDIS_PASSWORD=${redis_pw}
+
+VAULT_ADDR=http://vault:8200
+VAULT_TOKEN=${vault_token}
+VAULT_MOUNT_PATH=secret/sdl
+
+AIRFLOW_FERNET_KEY=${airflow_fernet}
+AIRFLOW_SECRET_KEY=${airflow_secret}
+AIRFLOW_ADMIN_USER=airflow_admin
+AIRFLOW_ADMIN_PASSWORD=${airflow_admin_pw}
+AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://sdl_admin:${postgres_pw}@postgres:5432/airflow_db
+
+SENTINELONE_BASE_URL=
+SENTINELONE_API_TOKEN=
+QUALYS_BASE_URL=https://qualysapi.qualys.com
+QUALYS_USERNAME=
+QUALYS_PASSWORD=
+PROOFPOINT_BASE_URL=https://tap-api-v2.proofpoint.com
+PROOFPOINT_SERVICE_PRINCIPAL=
+PROOFPOINT_SECRET=
+MANTIS_BASE_URL=https://api.mantis.internal
+MANTIS_API_KEY=
+CISO_BASE_URL=http://ciso-assistance.internal:8080
+CISO_API_KEY=
+CISO_VERIFY_SSL=false
+MS_TENANT_ID=
+MS_CLIENT_ID=
+MS_CLIENT_SECRET=
+MS_SUBSCRIPTION_ID=
+GOOGLE_PROJECT_ID=
+AWS_ACCESS_KEY_ID=
+AWS_SECRET_ACCESS_KEY=
+AWS_REGION=us-east-1
+FORTIGATE_BASE_URL=http://fortigate.internal/api/v2
+FORTIGATE_API_KEY=
+FORTIGATE_VERIFY_SSL=false
+
+PIPELINE_INTERVAL_MINUTES=60
+PIPELINE_BATCH_SIZE=1000
+PIPELINE_MAX_RETRIES=3
+PIPELINE_TIMEOUT_SECONDS=300
+ENVEOF
 
   chmod 600 "$SCRIPT_DIR/.env"
-  log "Arquivo .env gerado com segredos seguros"
+  log "Arquivo .env gerado com segredos seguros\"
 
   # Salvar resumo das credenciais (sem incluir no git)
   cat > "$SCRIPT_DIR/CREDENTIALS.txt" << EOF
