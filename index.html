@@ -1,0 +1,1091 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Security Data Lake</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root {
+  --bg-primary: #070c14;
+  --bg-secondary: #0d1525;
+  --bg-card: #0f1a2e;
+  --bg-card-hover: #152035;
+  --border: #1c2e4a;
+  --border-bright: #2a4470;
+  --accent-cyan: #00e5ff;
+  --accent-blue: #0080ff;
+  --accent-green: #00ff9d;
+  --accent-yellow: #ffd700;
+  --accent-red: #ff3860;
+  --accent-orange: #ff8c00;
+  --accent-purple: #9d4edd;
+  --text-primary: #e8f0fe;
+  --text-secondary: #7a9bc4;
+  --text-dim: #3d5a80;
+  --critical: #ff3860;
+  --high: #ff7043;
+  --medium: #ffd700;
+  --low: #00e5ff;
+  --ok: #00ff9d;
+  --font-mono: 'Space Mono', monospace;
+  --font-body: 'DM Sans', sans-serif;
+  --radius: 8px;
+  --shadow: 0 4px 24px rgba(0,0,0,.5);
+  --glow-cyan: 0 0 20px rgba(0,229,255,.15);
+  --glow-green: 0 0 20px rgba(0,255,157,.15);
+  --glow-red: 0 0 20px rgba(255,56,96,.2);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{height:100%;font-size:14px}
+body{background:var(--bg-primary);color:var(--text-primary);font-family:var(--font-body);height:100%;overflow:hidden}
+
+/* ── LOGIN ───────────────────────────────────────────────────────────────── */
+#login-screen {
+  display:flex;align-items:center;justify-content:center;height:100vh;
+  background: radial-gradient(ellipse at 30% 50%, #0a1628 0%, #070c14 60%);
+  position:relative;overflow:hidden;
+}
+#login-screen::before{
+  content:'';position:absolute;inset:0;
+  background-image: repeating-linear-gradient(0deg,transparent,transparent 39px,rgba(0,229,255,.03) 39px,rgba(0,229,255,.03) 40px),
+                    repeating-linear-gradient(90deg,transparent,transparent 39px,rgba(0,229,255,.03) 39px,rgba(0,229,255,.03) 40px);
+  pointer-events:none;
+}
+.login-box{
+  width:400px;background:var(--bg-card);border:1px solid var(--border-bright);
+  border-radius:12px;padding:48px 40px;box-shadow:var(--shadow), var(--glow-cyan);
+  animation: fadeUp .5s ease;
+}
+.login-logo{text-align:center;margin-bottom:36px}
+.login-logo i{font-size:2.5rem;color:var(--accent-cyan);display:block;margin-bottom:12px}
+.login-logo h1{font-family:var(--font-mono);font-size:1.1rem;color:var(--text-primary);letter-spacing:2px}
+.login-logo p{font-size:.8rem;color:var(--text-secondary);margin-top:4px;font-family:var(--font-mono)}
+.login-box label{display:block;font-size:.75rem;color:var(--text-secondary);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;font-family:var(--font-mono)}
+.login-box input{
+  width:100%;background:#0a1525;border:1px solid var(--border);border-radius:6px;
+  padding:10px 14px;color:var(--text-primary);font-size:.9rem;font-family:var(--font-body);
+  outline:none;transition:border-color .2s;margin-bottom:18px;
+}
+.login-box input:focus{border-color:var(--accent-cyan);box-shadow:0 0 0 2px rgba(0,229,255,.1)}
+.btn-login{
+  width:100%;padding:12px;background:var(--accent-cyan);color:#000;
+  border:none;border-radius:6px;font-weight:700;font-size:.9rem;cursor:pointer;
+  font-family:var(--font-mono);letter-spacing:1px;transition:all .2s;margin-top:6px;
+}
+.btn-login:hover{background:#33ecff;box-shadow:var(--glow-cyan)}
+.login-error{
+  background:rgba(255,56,96,.1);border:1px solid rgba(255,56,96,.3);
+  border-radius:6px;padding:10px 14px;font-size:.8rem;color:var(--critical);
+  margin-bottom:14px;display:none;font-family:var(--font-mono);
+}
+
+/* ── LAYOUT ──────────────────────────────────────────────────────────────── */
+#app{display:none;height:100vh;overflow:hidden;flex-direction:column}
+#app.visible{display:flex}
+
+.topbar{
+  height:52px;background:var(--bg-secondary);border-bottom:1px solid var(--border);
+  display:flex;align-items:center;padding:0 20px;gap:16px;flex-shrink:0;
+  position:relative;z-index:100;
+}
+.topbar-brand{display:flex;align-items:center;gap:10px;flex:0 0 220px}
+.topbar-brand i{color:var(--accent-cyan);font-size:1.1rem}
+.topbar-brand span{font-family:var(--font-mono);font-size:.8rem;color:var(--text-primary);letter-spacing:2px}
+.topbar-nav{display:flex;gap:2px;flex:1}
+.nav-btn{
+  padding:6px 14px;border:none;background:transparent;color:var(--text-secondary);
+  cursor:pointer;border-radius:5px;font-size:.8rem;font-family:var(--font-mono);
+  letter-spacing:.5px;transition:all .2s;display:flex;align-items:center;gap:7px;
+}
+.nav-btn:hover{background:var(--bg-card);color:var(--text-primary)}
+.nav-btn.active{background:var(--bg-card);color:var(--accent-cyan);border:1px solid var(--border)}
+.topbar-right{display:flex;align-items:center;gap:14px;margin-left:auto}
+.user-badge{
+  display:flex;align-items:center;gap:8px;padding:5px 12px;
+  background:var(--bg-card);border:1px solid var(--border);border-radius:20px;cursor:pointer;
+  font-size:.8rem;transition:border-color .2s;position:relative;
+}
+.user-badge:hover{border-color:var(--border-bright)}
+.user-badge .avatar{width:26px;height:26px;background:var(--accent-cyan);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.65rem;font-weight:700;color:#000}
+.role-badge{font-size:.65rem;font-family:var(--font-mono);padding:2px 6px;border-radius:3px;background:rgba(0,229,255,.1);color:var(--accent-cyan)}
+
+.user-menu{
+  position:absolute;top:calc(100% + 6px);right:0;background:var(--bg-card);
+  border:1px solid var(--border-bright);border-radius:8px;min-width:180px;
+  box-shadow:var(--shadow);z-index:200;display:none;overflow:hidden;
+}
+.user-menu.open{display:block}
+.user-menu a{
+  display:flex;align-items:center;gap:9px;padding:10px 16px;
+  color:var(--text-secondary);font-size:.82rem;cursor:pointer;transition:all .15s;text-decoration:none;
+}
+.user-menu a:hover{background:var(--bg-card-hover);color:var(--text-primary)}
+.user-menu .sep{height:1px;background:var(--border);margin:4px 0}
+
+.main-container{display:flex;flex:1;overflow:hidden}
+.sidebar{
+  width:220px;background:var(--bg-secondary);border-right:1px solid var(--border);
+  flex-shrink:0;overflow-y:auto;padding:16px 0;
+  display:none;flex-direction:column;
+}
+.sidebar.visible{display:flex}
+.sidebar-section{padding:6px 16px 4px;font-size:.65rem;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-dim);font-family:var(--font-mono)}
+.sidebar a{
+  display:flex;align-items:center;gap:9px;padding:8px 16px;
+  color:var(--text-secondary);font-size:.82rem;cursor:pointer;transition:all .15s;text-decoration:none;
+  border-left:2px solid transparent;
+}
+.sidebar a:hover{background:var(--bg-card);color:var(--text-primary)}
+.sidebar a.active{background:rgba(0,229,255,.06);color:var(--accent-cyan);border-left-color:var(--accent-cyan)}
+.sidebar .count-badge{margin-left:auto;background:var(--critical);color:#fff;font-size:.65rem;padding:1px 6px;border-radius:10px;font-family:var(--font-mono)}
+
+.content{flex:1;overflow:auto;padding:20px;background:var(--bg-primary)}
+
+/* ── PAGES ───────────────────────────────────────────────────────────────── */
+.page{display:none;animation:fadeIn .2s ease}
+.page.active{display:block}
+.page-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
+.page-title{font-family:var(--font-mono);font-size:.95rem;letter-spacing:2px;color:var(--text-primary)}
+.page-title span{color:var(--accent-cyan)}
+
+/* ── KPI CARDS ───────────────────────────────────────────────────────────── */
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px;margin-bottom:20px}
+.kpi-card{
+  background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);
+  padding:18px;cursor:default;transition:all .2s;position:relative;overflow:hidden;
+}
+.kpi-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px}
+.kpi-card.cyan::before{background:var(--accent-cyan);box-shadow:var(--glow-cyan)}
+.kpi-card.green::before{background:var(--accent-green)}
+.kpi-card.red::before{background:var(--critical)}
+.kpi-card.orange::before{background:var(--accent-orange)}
+.kpi-card.yellow::before{background:var(--accent-yellow)}
+.kpi-card.purple::before{background:var(--accent-purple)}
+.kpi-card:hover{background:var(--bg-card-hover);border-color:var(--border-bright)}
+.kpi-label{font-size:.7rem;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-secondary);font-family:var(--font-mono);margin-bottom:8px}
+.kpi-value{font-family:var(--font-mono);font-size:2.2rem;font-weight:700;line-height:1;margin-bottom:6px}
+.kpi-sub{font-size:.75rem;color:var(--text-secondary)}
+.kpi-card.cyan .kpi-value{color:var(--accent-cyan)}
+.kpi-card.green .kpi-value{color:var(--accent-green)}
+.kpi-card.red .kpi-value{color:var(--critical)}
+.kpi-card.orange .kpi-value{color:var(--accent-orange)}
+.kpi-card.yellow .kpi-value{color:var(--accent-yellow)}
+.kpi-card.purple .kpi-value{color:var(--accent-purple)}
+.kpi-icon{position:absolute;right:16px;top:18px;font-size:1.4rem;opacity:.15}
+
+/* ── GRID LAYOUT ─────────────────────────────────────────────────────────── */
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
+.grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:14px}
+.span-2{grid-column:span 2}
+
+/* ── CARD ─────────────────────────────────────────────────────────────────── */
+.card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:18px;margin-bottom:14px}
+.card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.card-title{font-family:var(--font-mono);font-size:.78rem;letter-spacing:1.5px;color:var(--text-secondary);text-transform:uppercase}
+.card-actions{display:flex;gap:8px}
+
+/* ── TABLE ────────────────────────────────────────────────────────────────── */
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:.82rem}
+th{
+  background:var(--bg-secondary);padding:8px 12px;text-align:left;
+  font-family:var(--font-mono);font-size:.7rem;letter-spacing:1px;
+  color:var(--text-dim);text-transform:uppercase;border-bottom:1px solid var(--border);
+}
+td{padding:9px 12px;border-bottom:1px solid rgba(28,46,74,.5);color:var(--text-secondary);vertical-align:middle}
+tr:hover td{background:rgba(255,255,255,.02);color:var(--text-primary)}
+.no-data{text-align:center;padding:40px;color:var(--text-dim);font-family:var(--font-mono);font-size:.8rem}
+
+/* ── SEVERITY BADGES ─────────────────────────────────────────────────────── */
+.sev{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:3px;font-size:.7rem;font-family:var(--font-mono);font-weight:700;text-transform:uppercase}
+.sev-critical{background:rgba(255,56,96,.15);color:var(--critical);border:1px solid rgba(255,56,96,.3)}
+.sev-high{background:rgba(255,112,67,.15);color:#ff7043;border:1px solid rgba(255,112,67,.3)}
+.sev-medium{background:rgba(255,215,0,.12);color:var(--accent-yellow);border:1px solid rgba(255,215,0,.3)}
+.sev-low{background:rgba(0,229,255,.1);color:var(--accent-cyan);border:1px solid rgba(0,229,255,.2)}
+.sev-info{background:rgba(122,155,196,.1);color:var(--text-secondary);border:1px solid rgba(122,155,196,.2)}
+
+/* ── STATUS DOTS ─────────────────────────────────────────────────────────── */
+.status-dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:6px}
+.dot-green{background:var(--accent-green);box-shadow:0 0 6px var(--accent-green)}
+.dot-red{background:var(--critical);box-shadow:0 0 6px var(--critical)}
+.dot-yellow{background:var(--accent-yellow)}
+.dot-gray{background:var(--text-dim)}
+
+/* ── BUTTONS ─────────────────────────────────────────────────────────────── */
+.btn{padding:7px 14px;border:1px solid var(--border);border-radius:5px;background:transparent;color:var(--text-secondary);cursor:pointer;font-size:.78rem;font-family:var(--font-mono);transition:all .2s;display:inline-flex;align-items:center;gap:6px}
+.btn:hover{border-color:var(--accent-cyan);color:var(--accent-cyan)}
+.btn-primary{background:var(--accent-cyan);color:#000;border-color:var(--accent-cyan);font-weight:700}
+.btn-primary:hover{background:#33ecff;color:#000}
+.btn-danger{border-color:rgba(255,56,96,.4);color:var(--critical)}
+.btn-danger:hover{background:rgba(255,56,96,.1)}
+.btn-sm{padding:4px 10px;font-size:.72rem}
+
+/* ── FORMS ────────────────────────────────────────────────────────────────── */
+.form-group{margin-bottom:16px}
+.form-group label{display:block;font-size:.72rem;color:var(--text-secondary);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;font-family:var(--font-mono)}
+.form-group input,
+.form-group select,
+.form-group textarea{
+  width:100%;background:var(--bg-secondary);border:1px solid var(--border);border-radius:5px;
+  padding:9px 12px;color:var(--text-primary);font-size:.85rem;font-family:var(--font-body);outline:none;transition:border-color .2s;
+}
+.form-group input:focus,
+.form-group select:focus{border-color:var(--accent-cyan);box-shadow:0 0 0 2px rgba(0,229,255,.08)}
+.form-group select option{background:var(--bg-secondary)}
+
+/* ── MODAL ────────────────────────────────────────────────────────────────── */
+.modal-overlay{
+  display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);
+  z-index:1000;align-items:center;justify-content:center;backdrop-filter:blur(3px);
+}
+.modal-overlay.open{display:flex}
+.modal{
+  background:var(--bg-card);border:1px solid var(--border-bright);border-radius:10px;
+  padding:32px;width:480px;max-width:95vw;box-shadow:var(--shadow),var(--glow-cyan);
+  animation:fadeUp .2s ease;max-height:90vh;overflow-y:auto;
+}
+.modal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px}
+.modal-title{font-family:var(--font-mono);font-size:.9rem;letter-spacing:1.5px;color:var(--text-primary)}
+.modal-close{background:none;border:none;color:var(--text-secondary);cursor:pointer;font-size:1.2rem;padding:4px;transition:color .2s}
+.modal-close:hover{color:var(--critical)}
+
+/* ── SOURCE STATUS ────────────────────────────────────────────────────────── */
+.sources-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px}
+.source-card{
+  background:var(--bg-secondary);border:1px solid var(--border);border-radius:var(--radius);
+  padding:14px 16px;display:flex;align-items:center;gap:12px;
+}
+.source-icon{width:36px;height:36px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:.9rem;flex-shrink:0}
+.source-info{flex:1;min-width:0}
+.source-name{font-family:var(--font-mono);font-size:.78rem;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.source-status{font-size:.7rem;color:var(--text-dim);margin-top:2px}
+
+/* ── PROGRESS BAR ─────────────────────────────────────────────────────────── */
+.progress-bar{height:6px;background:var(--border);border-radius:3px;overflow:hidden;margin-top:8px}
+.progress-fill{height:100%;border-radius:3px;transition:width .6s ease}
+.fill-cyan{background:var(--accent-cyan)}
+.fill-green{background:var(--accent-green)}
+.fill-red{background:var(--critical)}
+.fill-yellow{background:var(--accent-yellow)}
+
+/* ── TOAST ────────────────────────────────────────────────────────────────── */
+#toast-container{position:fixed;bottom:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:8px}
+.toast{
+  background:var(--bg-card);border:1px solid var(--border);border-radius:7px;
+  padding:12px 18px;font-size:.82rem;display:flex;align-items:center;gap:10px;
+  animation:slideIn .2s ease;box-shadow:var(--shadow);min-width:250px;font-family:var(--font-mono);
+}
+.toast.success{border-color:rgba(0,255,157,.3);color:var(--accent-green)}
+.toast.error{border-color:rgba(255,56,96,.3);color:var(--critical)}
+.toast.info{border-color:rgba(0,229,255,.3);color:var(--accent-cyan)}
+
+/* ── CHARTS ───────────────────────────────────────────────────────────────── */
+.chart-container{position:relative;height:220px}
+.chart-container-sm{position:relative;height:160px}
+
+/* ── ANIMATIONS ───────────────────────────────────────────────────────────── */
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+@keyframes slideIn{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:translateX(0)}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+.loading{animation:pulse 1.5s infinite}
+
+/* ── SCROLLBAR ────────────────────────────────────────────────────────────── */
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:var(--border-bright)}
+
+@media(max-width:900px){.grid-2,.grid-3{grid-template-columns:1fr}.span-2{grid-column:span 1}.topbar-nav{display:none}}
+</style>
+</head>
+<body>
+
+<!-- LOGIN SCREEN -->
+<div id="login-screen">
+  <div class="login-box">
+    <div class="login-logo">
+      <i class="fas fa-shield-halved"></i>
+      <h1>SECURITY DATA LAKE</h1>
+      <p>TELEMETRY PIPELINE v1.0</p>
+    </div>
+    <div id="login-error" class="login-error">
+      <i class="fas fa-circle-exclamation"></i> <span id="login-error-msg">Credenciais inválidas</span>
+    </div>
+    <div class="form-group">
+      <label>Username</label>
+      <input type="text" id="login-username" placeholder="admin" autocomplete="username"/>
+    </div>
+    <div class="form-group">
+      <label>Password</label>
+      <input type="password" id="login-password" placeholder="••••••••••••" autocomplete="current-password"/>
+    </div>
+    <button class="btn-login" id="btn-login">
+      <i class="fas fa-terminal"></i> ENTRAR
+    </button>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="app">
+  <!-- TOPBAR -->
+  <div class="topbar">
+    <div class="topbar-brand">
+      <i class="fas fa-shield-halved"></i>
+      <span>SDL</span>
+    </div>
+    <div class="topbar-nav">
+      <button class="nav-btn active" onclick="showPage('dashboard')"><i class="fas fa-chart-line"></i>Dashboard</button>
+      <button class="nav-btn" onclick="showPage('assets')"><i class="fas fa-server"></i>Ativos</button>
+      <button class="nav-btn" onclick="showPage('vulnerabilities')"><i class="fas fa-bug"></i>Vulnerabilidades</button>
+      <button class="nav-btn" onclick="showPage('threats')"><i class="fas fa-triangle-exclamation"></i>Ameaças</button>
+      <button class="nav-btn" onclick="showPage('pipelines')"><i class="fas fa-bolt"></i>Pipelines</button>
+      <button class="nav-btn" id="nav-users" style="display:none" onclick="showPage('users')"><i class="fas fa-users"></i>Usuários</button>
+      <button class="nav-btn" id="nav-audit" style="display:none" onclick="showPage('audit')"><i class="fas fa-clipboard-list"></i>Auditoria</button>
+    </div>
+    <div class="topbar-right">
+      <span id="status-indicator" style="font-size:.7rem;font-family:var(--font-mono);color:var(--text-dim)">
+        <span class="status-dot dot-gray"></span> conectando...
+      </span>
+      <div class="user-badge" onclick="toggleUserMenu()">
+        <div class="avatar" id="user-avatar">?</div>
+        <span id="user-display" style="font-size:.8rem">...</span>
+        <span class="role-badge" id="user-role-badge">-</span>
+        <div class="user-menu" id="user-menu">
+          <a onclick="openProfileModal()"><i class="fas fa-user" style="width:16px"></i> Meu Perfil</a>
+          <a onclick="openChangePasswordModal()"><i class="fas fa-key" style="width:16px"></i> Alterar Senha</a>
+          <div class="sep"></div>
+          <a onclick="logout()" style="color:var(--critical)"><i class="fas fa-right-from-bracket" style="width:16px"></i> Sair</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="main-container">
+    <div class="content">
+
+      <!-- DASHBOARD PAGE -->
+      <div id="page-dashboard" class="page active">
+        <div class="page-header">
+          <div class="page-title">SECURITY <span>KPIs</span></div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <span id="last-updated" style="font-size:.72rem;font-family:var(--font-mono);color:var(--text-dim)">—</span>
+            <button class="btn btn-sm" onclick="loadDashboard()"><i class="fas fa-arrows-rotate"></i> Atualizar</button>
+          </div>
+        </div>
+
+        <div class="kpi-grid" id="kpi-grid">
+          <!-- Populated by JS -->
+          <div class="kpi-card cyan loading"><div class="kpi-label">Ativos Monitorados</div><div class="kpi-value">—</div></div>
+          <div class="kpi-card red loading"><div class="kpi-label">Vulns Críticas</div><div class="kpi-value">—</div></div>
+          <div class="kpi-card orange loading"><div class="kpi-label">Ameaças Abertas</div><div class="kpi-value">—</div></div>
+          <div class="kpi-card yellow loading"><div class="kpi-label">Patch Rate</div><div class="kpi-value">—</div></div>
+          <div class="kpi-card green loading"><div class="kpi-label">Pipeline Success</div><div class="kpi-value">—</div></div>
+          <div class="kpi-card purple loading"><div class="kpi-label">Compliance Score</div><div class="kpi-value">—</div></div>
+        </div>
+
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-header"><span class="card-title"><i class="fas fa-chart-area" style="color:var(--accent-cyan);margin-right:6px"></i>Vulnerabilidades — 30 Dias</span></div>
+            <div class="chart-container"><canvas id="chart-vuln-trend"></canvas></div>
+          </div>
+          <div class="card">
+            <div class="card-header"><span class="card-title"><i class="fas fa-bolt" style="color:var(--accent-yellow);margin-right:6px"></i>Ameaças — 30 Dias</span></div>
+            <div class="chart-container"><canvas id="chart-threat-trend"></canvas></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header"><span class="card-title"><i class="fas fa-plug" style="color:var(--accent-green);margin-right:6px"></i>Status das Fontes de Dados</span><button class="btn btn-sm" onclick="loadSources()"><i class="fas fa-arrows-rotate"></i></button></div>
+          <div class="sources-grid" id="sources-grid">
+            <div class="source-card loading" style="opacity:.5">Carregando fontes...</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ASSETS PAGE -->
+      <div id="page-assets" class="page">
+        <div class="page-header">
+          <div class="page-title">INVENTÁRIO DE <span>ATIVOS</span></div>
+          <div style="display:flex;gap:8px">
+            <input type="text" id="assets-search" placeholder="Buscar hostname, IP..." style="background:var(--bg-card);border:1px solid var(--border);color:var(--text-primary);padding:6px 12px;border-radius:5px;font-size:.8rem;width:220px" oninput="filterAssets()"/>
+            <button class="btn btn-sm" onclick="loadAssets()"><i class="fas fa-arrows-rotate"></i></button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="table-wrap">
+            <table id="assets-table">
+              <thead><tr><th>Hostname</th><th>IP</th><th>OS</th><th>Tipo</th><th>Ambiente</th><th>Risk Score</th><th>Último Scan</th><th>Fontes</th></tr></thead>
+              <tbody id="assets-tbody"><tr><td colspan="8" class="no-data loading">Carregando...</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- VULNERABILITIES PAGE -->
+      <div id="page-vulnerabilities" class="page">
+        <div class="page-header">
+          <div class="page-title"><span>VULNERABILIDADES</span></div>
+          <div style="display:flex;gap:8px">
+            <select id="vuln-filter-sev" style="background:var(--bg-card);border:1px solid var(--border);color:var(--text-secondary);padding:6px 10px;border-radius:5px;font-size:.78rem" onchange="loadVulnerabilities()">
+              <option value="">Todas severidades</option>
+              <option value="critical">Critical</option><option value="high">High</option>
+              <option value="medium">Medium</option><option value="low">Low</option>
+            </select>
+            <button class="btn btn-sm" onclick="loadVulnerabilities()"><i class="fas fa-arrows-rotate"></i></button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="table-wrap">
+            <table id="vulns-table">
+              <thead><tr><th>CVE/ID</th><th>Título</th><th>Severidade</th><th>Ativo</th><th>CVSS</th><th>Patch</th><th>Status</th><th>Fonte</th><th>Detectado</th></tr></thead>
+              <tbody id="vulns-tbody"><tr><td colspan="9" class="no-data loading">Carregando...</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- THREATS PAGE -->
+      <div id="page-threats" class="page">
+        <div class="page-header">
+          <div class="page-title">AMEAÇAS & <span>ALERTAS</span></div>
+          <button class="btn btn-sm" onclick="loadThreats()"><i class="fas fa-arrows-rotate"></i></button>
+        </div>
+        <div class="card">
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Tipo</th><th>Título</th><th>Severidade</th><th>Ativo</th><th>MITRE Tactic</th><th>Status</th><th>Fonte</th><th>Data</th></tr></thead>
+              <tbody id="threats-tbody"><tr><td colspan="8" class="no-data loading">Carregando...</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- PIPELINES PAGE -->
+      <div id="page-pipelines" class="page">
+        <div class="page-header">
+          <div class="page-title">PIPELINE <span>RUNS</span></div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-primary btn-sm" id="btn-trigger-all" onclick="triggerAllPipelines()"><i class="fas fa-play"></i> Acionar Todos</button>
+            <button class="btn btn-sm" onclick="loadPipelines()"><i class="fas fa-arrows-rotate"></i></button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header"><span class="card-title">FONTES</span></div>
+          <div class="sources-grid" id="pipeline-sources-grid">
+            <div class="loading" style="opacity:.5">Carregando...</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header"><span class="card-title">HISTÓRICO DE EXECUÇÕES</span></div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Pipeline</th><th>Fonte</th><th>Status</th><th>Registros</th><th>Duração</th><th>Acionado Por</th><th>Início</th></tr></thead>
+              <tbody id="pipelines-tbody"><tr><td colspan="7" class="no-data loading">Carregando...</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- USERS PAGE -->
+      <div id="page-users" class="page">
+        <div class="page-header">
+          <div class="page-title">GERENCIAMENTO DE <span>USUÁRIOS</span></div>
+          <button class="btn btn-primary btn-sm" onclick="openCreateUserModal()"><i class="fas fa-plus"></i> Novo Usuário</button>
+        </div>
+        <div class="card">
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Username</th><th>Nome</th><th>Email</th><th>Role</th><th>Status</th><th>Último Login</th><th>Criado em</th><th>Ações</th></tr></thead>
+              <tbody id="users-tbody"><tr><td colspan="8" class="no-data loading">Carregando...</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- AUDIT PAGE -->
+      <div id="page-audit" class="page">
+        <div class="page-header">
+          <div class="page-title">LOG DE <span>AUDITORIA</span></div>
+          <button class="btn btn-sm" onclick="loadAudit()"><i class="fas fa-arrows-rotate"></i></button>
+        </div>
+        <div class="card">
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Data/Hora</th><th>Usuário</th><th>Ação</th><th>Recurso</th><th>Descrição</th><th>IP</th><th>OK</th></tr></thead>
+              <tbody id="audit-tbody"><tr><td colspan="7" class="no-data loading">Carregando...</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- MODALS -->
+<div class="modal-overlay" id="modal-create-user">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">CRIAR USUÁRIO</span>
+      <button class="modal-close" onclick="closeModal('modal-create-user')"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="form-group"><label>Username *</label><input type="text" id="new-username" placeholder="johndoe"/></div>
+    <div class="form-group"><label>Email *</label><input type="email" id="new-email" placeholder="john@empresa.com"/></div>
+    <div class="form-group"><label>Nome Completo</label><input type="text" id="new-fullname" placeholder="John Doe"/></div>
+    <div class="form-group"><label>Senha * (mín. 12 chars, 1 maiúscula, 1 número)</label><input type="password" id="new-password" placeholder="Senha segura"/></div>
+    <div class="form-group">
+      <label>Role *</label>
+      <select id="new-role">
+        <option value="viewer">Viewer — Somente leitura</option>
+        <option value="analyst">Analyst — Análise + relatórios</option>
+        <option value="pipeline_manager">Pipeline Manager — Gerenciar pipelines</option>
+        <option value="admin">Admin — Acesso total</option>
+      </select>
+    </div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:24px">
+      <button class="btn" onclick="closeModal('modal-create-user')">Cancelar</button>
+      <button class="btn btn-primary" onclick="createUser()"><i class="fas fa-user-plus"></i> Criar</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-edit-user">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">EDITAR USUÁRIO</span>
+      <button class="modal-close" onclick="closeModal('modal-edit-user')"><i class="fas fa-times"></i></button>
+    </div>
+    <input type="hidden" id="edit-user-id"/>
+    <div class="form-group"><label>Email</label><input type="email" id="edit-email"/></div>
+    <div class="form-group"><label>Nome Completo</label><input type="text" id="edit-fullname"/></div>
+    <div class="form-group">
+      <label>Role</label>
+      <select id="edit-role">
+        <option value="viewer">Viewer</option><option value="analyst">Analyst</option>
+        <option value="pipeline_manager">Pipeline Manager</option><option value="admin">Admin</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Status</label>
+      <select id="edit-status"><option value="active">Ativo</option><option value="inactive">Inativo</option><option value="locked">Bloqueado</option></select>
+    </div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:24px">
+      <button class="btn" onclick="closeModal('modal-edit-user')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveUserEdit()"><i class="fas fa-save"></i> Salvar</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-change-password">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">ALTERAR SENHA</span>
+      <button class="modal-close" onclick="closeModal('modal-change-password')"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="form-group"><label>Senha Atual</label><input type="password" id="pw-current"/></div>
+    <div class="form-group"><label>Nova Senha</label><input type="password" id="pw-new"/></div>
+    <div class="form-group"><label>Confirmar Nova Senha</label><input type="password" id="pw-confirm"/></div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:24px">
+      <button class="btn" onclick="closeModal('modal-change-password')">Cancelar</button>
+      <button class="btn btn-primary" onclick="changePassword()"><i class="fas fa-key"></i> Alterar</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+
+<script>
+const API = window.location.origin;
+let token = localStorage.getItem('sdl_token');
+let currentUser = null;
+let charts = {};
+let allAssets = [];
+
+// ── AUTH ────────────────────────────────────────────────────────────────────
+async function apiCall(method, path, body = null, auth = true) {
+  const headers = {'Content-Type': 'application/json'};
+  if (auth && token) headers['Authorization'] = `Bearer ${token}`;
+  const opts = {method, headers};
+  if (body) opts.body = JSON.stringify(body);
+  const res = await fetch(API + path, opts);
+  if (res.status === 401) { logout(); return null; }
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || `HTTP ${res.status}`);
+  }
+  return res.status === 204 ? null : res.json();
+}
+
+async function login() {
+  const username = document.getElementById('login-username').value.trim();
+  const password = document.getElementById('login-password').value;
+  const errEl = document.getElementById('login-error');
+  const btn = document.getElementById('btn-login');
+
+  if (!username || !password) { showLoginError('Preencha username e senha'); return; }
+  btn.disabled = true; btn.textContent = 'AUTENTICANDO...';
+
+  try {
+    const fd = new URLSearchParams({username, password});
+    const res = await fetch(API + '/api/v1/auth/token', {method:'POST', body: fd});
+    if (!res.ok) { const e = await res.json(); throw new Error(e.detail || 'Falha'); }
+    const data = await res.json();
+    token = data.access_token;
+    localStorage.setItem('sdl_token', token);
+    currentUser = data.user;
+    errEl.style.display = 'none';
+    initApp();
+  } catch (e) {
+    showLoginError(e.message);
+    btn.disabled = false; btn.innerHTML = '<i class="fas fa-terminal"></i> ENTRAR';
+  }
+}
+
+function showLoginError(msg) {
+  const el = document.getElementById('login-error');
+  document.getElementById('login-error-msg').textContent = msg;
+  el.style.display = 'flex';
+}
+
+function logout() {
+  apiCall('POST', '/api/v1/auth/logout').catch(() => {});
+  token = null; localStorage.removeItem('sdl_token');
+  currentUser = null;
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('app').classList.remove('visible');
+}
+
+async function checkAuth() {
+  if (!token) return false;
+  try {
+    currentUser = await apiCall('GET', '/api/v1/auth/me');
+    return !!currentUser;
+  } catch { return false; }
+}
+
+// ── INIT ────────────────────────────────────────────────────────────────────
+async function initApp() {
+  document.getElementById('login-screen').style.display = 'none';
+  const app = document.getElementById('app');
+  app.classList.add('visible');
+
+  // Update UI with user info
+  const initials = (currentUser.full_name || currentUser.username).split(' ').map(n=>n[0]).slice(0,2).join('').toUpperCase();
+  document.getElementById('user-avatar').textContent = initials;
+  document.getElementById('user-display').textContent = currentUser.full_name || currentUser.username;
+  document.getElementById('user-role-badge').textContent = currentUser.role.toUpperCase();
+
+  // Show admin-only nav items
+  if (['admin', 'analyst'].includes(currentUser.role)) {
+    document.getElementById('nav-users').style.display = 'flex';
+    document.getElementById('nav-audit').style.display = 'flex';
+  }
+
+  // API health check
+  try {
+    await fetch(API + '/health');
+    document.getElementById('status-indicator').innerHTML = `<span class="status-dot dot-green"></span> online`;
+  } catch {
+    document.getElementById('status-indicator').innerHTML = `<span class="status-dot dot-red"></span> offline`;
+  }
+
+  loadDashboard();
+}
+
+// ── NAVIGATION ───────────────────────────────────────────────────────────────
+function showPage(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-' + page).classList.add('active');
+  document.querySelectorAll('.nav-btn').forEach(b => { if (b.textContent.toLowerCase().includes(page.substring(0,4).toLowerCase())) b.classList.add('active'); });
+
+  const loaders = { dashboard: loadDashboard, assets: loadAssets, vulnerabilities: loadVulnerabilities, threats: loadThreats, pipelines: loadPipelines, users: loadUsers, audit: loadAudit };
+  if (loaders[page]) loaders[page]();
+}
+
+// ── DASHBOARD ────────────────────────────────────────────────────────────────
+async function loadDashboard() {
+  try {
+    const [kpis, trends] = await Promise.all([
+      apiCall('GET', '/api/v1/dashboard/kpis'),
+      apiCall('GET', '/api/v1/dashboard/trends?days=30')
+    ]);
+    if (!kpis) return;
+    renderKPIs(kpis);
+    renderTrends(trends);
+    document.getElementById('last-updated').textContent = 'Atualizado: ' + new Date().toLocaleTimeString('pt-BR');
+    loadSources();
+  } catch (e) { toast('Erro ao carregar KPIs: ' + e.message, 'error'); }
+}
+
+function renderKPIs(d) {
+  document.getElementById('kpi-grid').innerHTML = `
+    <div class="kpi-card cyan"><i class="fas fa-server kpi-icon"></i><div class="kpi-label">Ativos Monitorados</div><div class="kpi-value">${d.assets.total}</div><div class="kpi-sub"><span style="color:var(--accent-orange)">${d.assets.at_risk}</span> em risco (${d.assets.risk_rate}%)</div></div>
+    <div class="kpi-card red"><i class="fas fa-skull-crossbones kpi-icon"></i><div class="kpi-label">Vulns Críticas</div><div class="kpi-value">${d.vulnerabilities.critical}</div><div class="kpi-sub">+${d.vulnerabilities.high} high | ${d.vulnerabilities.new_last_7d} novas/7d</div></div>
+    <div class="kpi-card orange"><i class="fas fa-triangle-exclamation kpi-icon"></i><div class="kpi-label">Ameaças Abertas</div><div class="kpi-value">${d.threats.open}</div><div class="kpi-sub">${d.threats.critical} críticas | ${d.threats.last_7d} últimos 7d</div></div>
+    <div class="kpi-card yellow"><i class="fas fa-shield-check kpi-icon"></i><div class="kpi-label">Patch Rate</div><div class="kpi-value">${d.vulnerabilities.patch_rate_pct}%</div><div class="kpi-sub">Vulnerabilidades com patch aplicado</div><div class="progress-bar"><div class="progress-fill ${d.vulnerabilities.patch_rate_pct>70?'fill-green':'fill-yellow'}" style="width:${d.vulnerabilities.patch_rate_pct}%"></div></div></div>
+    <div class="kpi-card green"><i class="fas fa-bolt kpi-icon"></i><div class="kpi-label">Pipeline Success</div><div class="kpi-value">${d.pipeline.success_rate_pct}%</div><div class="kpi-sub">${d.pipeline.runs_last_30d} runs em 30d</div><div class="progress-bar"><div class="progress-fill ${d.pipeline.success_rate_pct>90?'fill-green':'fill-yellow'}" style="width:${d.pipeline.success_rate_pct}%"></div></div></div>
+    <div class="kpi-card purple"><i class="fas fa-clipboard-check kpi-icon"></i><div class="kpi-label">Compliance Score</div><div class="kpi-value">${d.compliance.avg_score}</div><div class="kpi-sub">Score médio GRC consolidado</div></div>
+  `;
+}
+
+function renderTrends(d) {
+  if (!d) return;
+  const vulnByDate = {};
+  (d.vulnerabilities_trend || []).forEach(r => {
+    if (!vulnByDate[r.date]) vulnByDate[r.date] = 0;
+    vulnByDate[r.date] += r.count;
+  });
+  const vulnLabels = Object.keys(vulnByDate).sort();
+  const vulnData = vulnLabels.map(l => vulnByDate[l]);
+  renderChart('chart-vuln-trend', vulnLabels, vulnData, 'Vulnerabilidades', '#ff3860', 'rgba(255,56,96,.1)');
+
+  const threatData = (d.threats_trend || []);
+  renderChart('chart-threat-trend', threatData.map(t=>t.date), threatData.map(t=>t.count), 'Ameaças', '#ffd700', 'rgba(255,215,0,.08)');
+}
+
+function renderChart(id, labels, data, label, color, fill) {
+  const ctx = document.getElementById(id);
+  if (!ctx) return;
+  if (charts[id]) { charts[id].destroy(); }
+  charts[id] = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: labels.map(l => l.slice(5)),
+      datasets: [{label, data, borderColor: color, backgroundColor: fill, fill: true, tension: 0.4, pointRadius: 2, pointHoverRadius: 4, borderWidth: 1.5}]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: { backgroundColor: '#0f1a2e', borderColor: '#1c2e4a', borderWidth: 1, titleColor: '#e8f0fe', bodyColor: '#7a9bc4' }},
+      scales: {
+        x: { grid: { color: 'rgba(28,46,74,.4)' }, ticks: { color: '#3d5a80', font: { size: 10, family: 'Space Mono' }, maxTicksLimit: 8 }},
+        y: { grid: { color: 'rgba(28,46,74,.4)' }, ticks: { color: '#3d5a80', font: { size: 10, family: 'Space Mono' }}}
+      }
+    }
+  });
+}
+
+async function loadSources() {
+  try {
+    const sources = await apiCall('GET', '/api/v1/dashboard/sources-status');
+    if (!sources) return;
+    const icons = { sentinelone: {i:'fa-shield-halved', c:'#00e5ff'}, qualys: {i:'fa-bug', c:'#ff7043'}, proofpoint: {i:'fa-envelope-shield', c:'#9d4edd'}, mantis: {i:'fa-eye', c:'#ffd700'}, ciso_assistance: {i:'fa-clipboard-check', c:'#00ff9d'}, ms_security: {i:'fa-windows', c:'#00adef'}, aws_security: {i:'fa-cloud', c:'#ff9900'}, google_security: {i:'fa-google', c:'#34a853'}, fortigate: {i:'fa-network-wired', c:'#e43d12'}};
+    document.getElementById('sources-grid').innerHTML = sources.map(s => {
+      const ico = icons[s.source] || {i:'fa-database', c:'#7a9bc4'};
+      const ok = s.is_configured && s.last_test_success;
+      const dot = ok ? 'dot-green' : s.is_configured ? 'dot-yellow' : 'dot-gray';
+      const statusTxt = !s.is_configured ? 'Não configurado' : ok ? `Sync: ${s.last_run_status}` : 'Falha na conexão';
+      return `<div class="source-card">
+        <div class="source-icon" style="background:${ico.c}22"><i class="fas ${ico.i}" style="color:${ico.c}"></i></div>
+        <div class="source-info">
+          <div class="source-name">${s.display_name}</div>
+          <div class="source-status"><span class="status-dot ${dot}"></span>${statusTxt}</div>
+        </div>
+        <span style="font-size:.65rem;font-family:var(--font-mono);color:var(--text-dim)">${s.last_run_records||0} rec</span>
+      </div>`;
+    }).join('');
+  } catch(e) { console.error(e); }
+}
+
+// ── ASSETS ──────────────────────────────────────────────────────────────────
+async function loadAssets() {
+  try {
+    const data = await apiCall('GET', '/api/v1/assets?limit=500') || [];
+    allAssets = data;
+    renderAssetsTable(data);
+  } catch(e) { document.getElementById('assets-tbody').innerHTML = `<tr><td colspan="8" class="no-data">Erro: ${e.message}</td></tr>`; }
+}
+
+function filterAssets() {
+  const q = document.getElementById('assets-search').value.toLowerCase();
+  renderAssetsTable(allAssets.filter(a => (a.hostname||'').toLowerCase().includes(q) || (a.ip_address||'').includes(q)));
+}
+
+function renderAssetsTable(data) {
+  const tbody = document.getElementById('assets-tbody');
+  if (!data.length) { tbody.innerHTML = '<tr><td colspan="8" class="no-data">Nenhum ativo encontrado</td></tr>'; return; }
+  const riskColor = r => r >= 7 ? 'var(--critical)' : r >= 4 ? 'var(--accent-orange)' : r >= 2 ? 'var(--accent-yellow)' : 'var(--accent-green)';
+  tbody.innerHTML = data.slice(0,200).map(a => `
+    <tr>
+      <td style="font-family:var(--font-mono);color:var(--text-primary)">${a.hostname||'—'}</td>
+      <td style="font-family:var(--font-mono)">${a.ip_address||'—'}</td>
+      <td>${a.os_name||'—'}</td>
+      <td>${a.asset_type||'—'}</td>
+      <td>${a.environment||'—'}</td>
+      <td style="font-family:var(--font-mono);color:${riskColor(a.risk_score||0)}">${(a.risk_score||0).toFixed(1)}</td>
+      <td style="font-size:.75rem">${a.last_seen ? new Date(a.last_seen).toLocaleString('pt-BR') : '—'}</td>
+      <td>${buildSourceBadges(a)}</td>
+    </tr>`).join('');
+}
+
+function buildSourceBadges(a) {
+  const badges = [];
+  if (a.sentinelone_id) badges.push('<span style="font-size:.65rem;padding:1px 5px;background:rgba(0,229,255,.1);color:var(--accent-cyan);border-radius:3px">S1</span>');
+  if (a.qualys_id) badges.push('<span style="font-size:.65rem;padding:1px 5px;background:rgba(255,112,67,.1);color:#ff7043;border-radius:3px">QL</span>');
+  if (a.cloud_instance_id) badges.push('<span style="font-size:.65rem;padding:1px 5px;background:rgba(157,78,221,.1);color:var(--accent-purple);border-radius:3px">CLOUD</span>');
+  return badges.join(' ') || '—';
+}
+
+// ── VULNERABILITIES ─────────────────────────────────────────────────────────
+async function loadVulnerabilities() {
+  const sev = document.getElementById('vuln-filter-sev').value;
+  const params = sev ? `?severity=${sev}&limit=300` : '?limit=300';
+  try {
+    const data = await apiCall('GET', '/api/v1/vulnerabilities' + params) || [];
+    const tbody = document.getElementById('vulns-tbody');
+    if (!data.length) { tbody.innerHTML = '<tr><td colspan="9" class="no-data">Nenhuma vulnerabilidade encontrada</td></tr>'; return; }
+    tbody.innerHTML = data.map(v => `
+      <tr>
+        <td style="font-family:var(--font-mono);font-size:.75rem;color:var(--accent-cyan)">${v.cve_id||v.source_vuln_id||'—'}</td>
+        <td style="max-width:300px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${v.title}</td>
+        <td>${sevBadge(v.severity)}</td>
+        <td style="font-family:var(--font-mono);font-size:.78rem">${v.asset_hostname||'—'}</td>
+        <td style="font-family:var(--font-mono);color:${cvssColor(v.cvss_score)}">${v.cvss_score||'—'}</td>
+        <td>${v.patch_available ? '<i class="fas fa-check" style="color:var(--accent-green)"></i>' : '<i class="fas fa-xmark" style="color:var(--text-dim)"></i>'}</td>
+        <td><span style="font-size:.75rem;padding:2px 7px;border-radius:3px;background:rgba(${v.status=='open'?'255,56,96':'0,255,157'},.1);color:var(${v.status=='open'?'--critical':'--accent-green'})">${v.status}</span></td>
+        <td style="font-size:.75rem;font-family:var(--font-mono)">${v.source}</td>
+        <td style="font-size:.75rem">${v.first_detected ? new Date(v.first_detected).toLocaleDateString('pt-BR') : '—'}</td>
+      </tr>`).join('');
+  } catch(e) { document.getElementById('vulns-tbody').innerHTML = `<tr><td colspan="9" class="no-data">Erro: ${e.message}</td></tr>`; }
+}
+
+// ── THREATS ──────────────────────────────────────────────────────────────────
+async function loadThreats() {
+  try {
+    const data = await apiCall('GET', '/api/v1/threats?limit=200') || [];
+    const tbody = document.getElementById('threats-tbody');
+    if (!data.length) { tbody.innerHTML = '<tr><td colspan="8" class="no-data">Nenhuma ameaça encontrada</td></tr>'; return; }
+    tbody.innerHTML = data.map(t => `
+      <tr>
+        <td style="font-size:.75rem;font-family:var(--font-mono)">${t.event_type}</td>
+        <td style="max-width:280px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${t.title}</td>
+        <td>${sevBadge(t.severity)}</td>
+        <td style="font-family:var(--font-mono);font-size:.78rem">${t.asset_hostname||'—'}</td>
+        <td style="font-size:.75rem">${t.mitre_tactic||'—'}</td>
+        <td><span style="font-size:.75rem;padding:2px 7px;border-radius:3px;background:rgba(${t.status=='open'?'255,56,96':'0,255,157'},.1);color:var(${t.status=='open'?'--critical':'--accent-green'})">${t.status}</span></td>
+        <td style="font-size:.75rem;font-family:var(--font-mono)">${t.source}</td>
+        <td style="font-size:.75rem">${t.event_timestamp ? new Date(t.event_timestamp).toLocaleString('pt-BR') : '—'}</td>
+      </tr>`).join('');
+  } catch(e) { document.getElementById('threats-tbody').innerHTML = `<tr><td colspan="8" class="no-data">Erro: ${e.message}</td></tr>`; }
+}
+
+// ── PIPELINES ────────────────────────────────────────────────────────────────
+async function loadPipelines() {
+  try {
+    const [runs, creds] = await Promise.all([
+      apiCall('GET', '/api/v1/pipelines/runs?limit=50'),
+      apiCall('GET', '/api/v1/pipelines/credentials')
+    ]);
+    if (creds) renderPipelineSources(creds);
+    if (runs) renderPipelineRuns(runs);
+  } catch(e) { toast('Erro ao carregar pipelines: ' + e.message, 'error'); }
+}
+
+function renderPipelineSources(creds) {
+  const icons = { sentinelone: 'fa-shield-halved', qualys: 'fa-bug', proofpoint: 'fa-envelope-shield', mantis: 'fa-eye', ciso_assistance: 'fa-clipboard-check', ms_security: 'fa-windows', aws_security: 'fa-cloud', google_security: 'fa-google', fortigate: 'fa-network-wired' };
+  document.getElementById('pipeline-sources-grid').innerHTML = creds.map(c => `
+    <div class="source-card" style="justify-content:space-between">
+      <div style="display:flex;align-items:center;gap:10px">
+        <i class="fas ${icons[c.source]||'fa-database'}" style="color:var(--accent-cyan);font-size:.9rem;width:20px"></i>
+        <div>
+          <div style="font-size:.78rem;font-family:var(--font-mono);color:var(--text-primary)">${c.display_name}</div>
+          <div style="font-size:.7rem;color:var(--text-dim)">${c.last_sync ? new Date(c.last_sync).toLocaleString('pt-BR') : 'Nunca sincronizado'}</div>
+        </div>
+      </div>
+      <button class="btn btn-sm" title="Acionar pipeline" onclick="triggerPipeline('${c.source}')"><i class="fas fa-play"></i></button>
+    </div>`).join('');
+}
+
+function renderPipelineRuns(runs) {
+  const statusColors = { success: 'var(--accent-green)', failed: 'var(--critical)', running: 'var(--accent-cyan)', pending: 'var(--accent-yellow)', partial: 'var(--accent-orange)' };
+  document.getElementById('pipelines-tbody').innerHTML = runs.length ? runs.map(r => `
+    <tr>
+      <td style="font-family:var(--font-mono);font-size:.78rem">${r.pipeline_name}</td>
+      <td style="font-family:var(--font-mono);font-size:.78rem">${r.source}</td>
+      <td><span style="font-size:.75rem;font-family:var(--font-mono);color:${statusColors[r.status]||'var(--text-secondary)'}"><i class="fas ${r.status=='success'?'fa-check':r.status=='failed'?'fa-times':r.status=='running'?'fa-spinner fa-spin':'fa-clock'}"></i> ${r.status}</span></td>
+      <td style="font-family:var(--font-mono)">${r.records_processed}</td>
+      <td style="font-family:var(--font-mono)">${r.duration_seconds ? r.duration_seconds.toFixed(1)+'s' : '—'}</td>
+      <td style="font-size:.78rem">${r.triggered_by||'scheduler'}</td>
+      <td style="font-size:.75rem">${new Date(r.started_at).toLocaleString('pt-BR')}</td>
+    </tr>`).join('') : '<tr><td colspan="7" class="no-data">Nenhum pipeline executado</td></tr>';
+}
+
+async function triggerPipeline(source) {
+  try {
+    await apiCall('POST', `/api/v1/pipelines/trigger/${source}`);
+    toast(`Pipeline ${source} iniciado`, 'success');
+    setTimeout(loadPipelines, 1500);
+  } catch(e) { toast('Erro: ' + e.message, 'error'); }
+}
+
+async function triggerAllPipelines() {
+  const btn = document.getElementById('btn-trigger-all');
+  btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Acionando...';
+  try {
+    await apiCall('POST', '/api/v1/pipelines/trigger-all');
+    toast('Todos os pipelines iniciados', 'success');
+    setTimeout(() => { loadPipelines(); btn.disabled = false; btn.innerHTML = '<i class="fas fa-play"></i> Acionar Todos'; }, 2000);
+  } catch(e) { toast('Erro: ' + e.message, 'error'); btn.disabled = false; btn.innerHTML = '<i class="fas fa-play"></i> Acionar Todos'; }
+}
+
+// ── USERS ────────────────────────────────────────────────────────────────────
+async function loadUsers() {
+  try {
+    const data = await apiCall('GET', '/api/v1/users/') || [];
+    const roleColors = { admin: 'var(--critical)', analyst: 'var(--accent-cyan)', pipeline_manager: 'var(--accent-yellow)', viewer: 'var(--text-secondary)' };
+    document.getElementById('users-tbody').innerHTML = data.length ? data.map(u => `
+      <tr>
+        <td style="font-family:var(--font-mono)">${u.username}</td>
+        <td>${u.full_name||'—'}</td>
+        <td style="font-size:.78rem">${u.email}</td>
+        <td><span style="font-size:.72rem;font-family:var(--font-mono);color:${roleColors[u.role]||'var(--text-secondary)'}">${u.role.toUpperCase()}</span></td>
+        <td><span class="status-dot ${u.status==='active'?'dot-green':u.status==='locked'?'dot-red':'dot-gray'}"></span>${u.status}</td>
+        <td style="font-size:.75rem">${u.last_login ? new Date(u.last_login).toLocaleString('pt-BR') : 'Nunca'}</td>
+        <td style="font-size:.75rem">${new Date(u.created_at).toLocaleDateString('pt-BR')}</td>
+        <td>
+          <button class="btn btn-sm" onclick="openEditUser(${JSON.stringify(u).replace(/"/g,'&quot;')})"><i class="fas fa-pen"></i></button>
+          ${u.status==='locked'?`<button class="btn btn-sm" onclick="unlockUser('${u.id}')" title="Desbloquear"><i class="fas fa-lock-open"></i></button>`:''}
+          ${u.id !== currentUser?.id ? `<button class="btn btn-sm btn-danger" onclick="deleteUser('${u.id}','${u.username}')"><i class="fas fa-trash"></i></button>` : ''}
+        </td>
+      </tr>`).join('') : '<tr><td colspan="8" class="no-data">Nenhum usuário cadastrado</td></tr>';
+  } catch(e) { toast('Erro ao carregar usuários: ' + e.message, 'error'); }
+}
+
+function openCreateUserModal() { document.getElementById('modal-create-user').classList.add('open'); }
+function openEditUser(u) {
+  document.getElementById('edit-user-id').value = u.id;
+  document.getElementById('edit-email').value = u.email;
+  document.getElementById('edit-fullname').value = u.full_name || '';
+  document.getElementById('edit-role').value = u.role;
+  document.getElementById('edit-status').value = u.status;
+  document.getElementById('modal-edit-user').classList.add('open');
+}
+
+async function createUser() {
+  const payload = {
+    username: document.getElementById('new-username').value.trim(),
+    email: document.getElementById('new-email').value.trim(),
+    full_name: document.getElementById('new-fullname').value.trim(),
+    password: document.getElementById('new-password').value,
+    role: document.getElementById('new-role').value,
+  };
+  if (!payload.username || !payload.email || !payload.password) { toast('Preencha todos os campos obrigatórios', 'error'); return; }
+  try {
+    await apiCall('POST', '/api/v1/users/', payload);
+    toast(`Usuário ${payload.username} criado com sucesso`, 'success');
+    closeModal('modal-create-user');
+    loadUsers();
+  } catch(e) { toast('Erro: ' + e.message, 'error'); }
+}
+
+async function saveUserEdit() {
+  const id = document.getElementById('edit-user-id').value;
+  const payload = {
+    email: document.getElementById('edit-email').value.trim(),
+    full_name: document.getElementById('edit-fullname').value.trim(),
+    role: document.getElementById('edit-role').value,
+    status: document.getElementById('edit-status').value,
+  };
+  try {
+    await apiCall('PUT', `/api/v1/users/${id}`, payload);
+    toast('Usuário atualizado', 'success');
+    closeModal('modal-edit-user');
+    loadUsers();
+  } catch(e) { toast('Erro: ' + e.message, 'error'); }
+}
+
+async function unlockUser(id) {
+  try {
+    await apiCall('PUT', `/api/v1/users/${id}/unlock`);
+    toast('Usuário desbloqueado', 'success'); loadUsers();
+  } catch(e) { toast('Erro: ' + e.message, 'error'); }
+}
+
+async function deleteUser(id, username) {
+  if (!confirm(`Desativar usuário "${username}"?`)) return;
+  try {
+    await apiCall('DELETE', `/api/v1/users/${id}`);
+    toast(`Usuário ${username} desativado`, 'success'); loadUsers();
+  } catch(e) { toast('Erro: ' + e.message, 'error'); }
+}
+
+// ── AUDIT ────────────────────────────────────────────────────────────────────
+async function loadAudit() {
+  try {
+    const data = await apiCall('GET', '/api/v1/audit/logs?limit=100') || [];
+    const actionColors = { login: 'var(--accent-green)', logout: 'var(--text-dim)', login_failed: 'var(--critical)', create: 'var(--accent-cyan)', update: 'var(--accent-yellow)', delete: 'var(--critical)', pipeline_run: 'var(--accent-purple)', password_change: 'var(--accent-orange)' };
+    document.getElementById('audit-tbody').innerHTML = data.length ? data.map(l => `
+      <tr>
+        <td style="font-family:var(--font-mono);font-size:.75rem;white-space:nowrap">${new Date(l.created_at).toLocaleString('pt-BR')}</td>
+        <td style="font-family:var(--font-mono);font-size:.78rem">${l.username||'system'}</td>
+        <td><span style="font-size:.72rem;font-family:var(--font-mono);color:${actionColors[l.action]||'var(--text-secondary)'}">${l.action}</span></td>
+        <td style="font-size:.75rem">${l.resource_type||'—'}</td>
+        <td style="font-size:.78rem;max-width:300px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${l.description||'—'}</td>
+        <td style="font-family:var(--font-mono);font-size:.75rem">${l.ip_address||'—'}</td>
+        <td>${l.success ? '<i class="fas fa-check" style="color:var(--accent-green)"></i>' : '<i class="fas fa-times" style="color:var(--critical)"></i>'}</td>
+      </tr>`).join('') : '<tr><td colspan="7" class="no-data">Nenhum registro de auditoria</td></tr>';
+  } catch(e) { toast('Erro ao carregar auditoria: ' + e.message, 'error'); }
+}
+
+// ── PASSWORD CHANGE ──────────────────────────────────────────────────────────
+function openChangePasswordModal() { document.getElementById('modal-change-password').classList.add('open'); toggleUserMenu(); }
+async function changePassword() {
+  const cur = document.getElementById('pw-current').value;
+  const nw = document.getElementById('pw-new').value;
+  const cf = document.getElementById('pw-confirm').value;
+  if (nw !== cf) { toast('As senhas não coincidem', 'error'); return; }
+  try {
+    await apiCall('POST', '/api/v1/users/me/change-password', {current_password: cur, new_password: nw});
+    toast('Senha alterada com sucesso', 'success');
+    closeModal('modal-change-password');
+  } catch(e) { toast('Erro: ' + e.message, 'error'); }
+}
+
+function openProfileModal() {
+  toast('Perfil: em breve', 'info'); toggleUserMenu();
+}
+
+// ── UTILS ────────────────────────────────────────────────────────────────────
+function sevBadge(s) {
+  const classes = { critical: 'sev-critical', high: 'sev-high', medium: 'sev-medium', low: 'sev-low', info: 'sev-info' };
+  return `<span class="sev ${classes[s]||'sev-info'}">${s||'?'}</span>`;
+}
+function cvssColor(s) { return s >= 9 ? 'var(--critical)' : s >= 7 ? 'var(--accent-orange)' : s >= 4 ? 'var(--accent-yellow)' : 'var(--accent-green)'; }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+function toggleUserMenu() { document.getElementById('user-menu').classList.toggle('open'); }
+function toast(msg, type = 'info') {
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  const icons = { success: 'fa-check-circle', error: 'fa-circle-exclamation', info: 'fa-circle-info' };
+  el.innerHTML = `<i class="fas ${icons[type]||'fa-info'}"></i> ${msg}`;
+  document.getElementById('toast-container').appendChild(el);
+  setTimeout(() => el.remove(), 3500);
+}
+
+// ── KEYBOARD SHORTCUTS ────────────────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') document.querySelectorAll('.modal-overlay.open, .user-menu.open').forEach(el => el.classList.remove('open'));
+  if (e.key === 'Enter' && document.getElementById('login-screen').style.display !== 'none') login();
+});
+document.addEventListener('click', e => {
+  if (!e.target.closest('.user-badge')) document.getElementById('user-menu').classList.remove('open');
+});
+
+// ── BOOT ─────────────────────────────────────────────────────────────────────
+(async () => {
+  document.getElementById('btn-login').addEventListener('click', login);
+  if (token) {
+    const ok = await checkAuth();
+    if (ok) initApp();
+  }
+})();
+</script>
+</body>
+</html>
