@@ -51,7 +51,7 @@ Pipeline de dados para centralização de telemetria de segurança multi-cloud e
 ## 🚀 Quick Start (Ubuntu Server)
 
 ```bash
-git clone https://github.com/YOUR_ORG/security-data-lake.git
+git clone https://github.com/khafirovisk/security-data-lake.git
 cd security-data-lake
 chmod +x setup.sh
 sudo ./setup.sh
